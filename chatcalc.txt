@@ -1,0 +1,155 @@
+IFMATCHES(%CHATCLEAN%,"\[Викторина] Первый игрок, решивший .* . .*, выиграет .*\.00 монет")
+  MATCH(%CHATCLEAN%,"ий (.*) (.) (.*), выиграет (.*).00 ",{#x1,&operation,#x2,#money})
+  IF(%#x2%=0)
+    MATCH(%CHATCLEAN%,"ий (.*) (.) (.*,)",{#x1,&operation,#x2})
+  ENDIF
+  IF(%#x2%=0)
+    LOG("Ошибка исполнения: Y = 0")
+    STOP()
+  ENDIF
+  IF(%&operation%="-")
+    #answer=#x1-#x2;
+    LOG("%#x1%-%#x2% = %#answer%")
+  ENDIF
+  IF(%&operation%="+")
+    #answer=#x1+#x2;
+    LOG("%#x1%+%#x2% = %#answer%")
+  ENDIF
+  IFMATCHES(%CHATCLEAN%,"..*\[")
+    LOG("Неверный отправитель")
+    STOP()
+  ENDIF
+  RANDOM(#rwait1,9000,12000)
+  IF(%#money%>900)
+    #rwait1=#rwait1-3000;
+  ENDIF
+  IF(%#money%<480)
+    LOG("Выигрыш слишком мал")
+  ELSE
+    LOG("Ожидание %#rwait1%мс")
+  ENDIF
+  RANDOM(#rexe,2,5)
+  IF((%#rexe%=2) && ((%#x1%>100) || (%#x1%<100)) && ((%#x2%>100) || (%#x2%<100)) && ((%#answer%>100) || (%#answer%<100)) && (%#money%<=900))
+    RANDOM(#rerror,1,8)
+    IF(%#rerror%=1)
+      #rerror=20;
+    ENDIF
+    IF(%#rerror%=3)
+      #rerror=-120;
+    ENDIF
+    IF(%#rerror%=5)
+      #rerror=100;
+    ENDIF
+    IF(%#rerror%=7)
+      #eanswer=0-#answer;
+    ELSE
+      #eanswer=#answer+#rerror;
+    ENDIF
+    RANDOM(#rwait2,3500,4500)
+    IF(%#money%<480)
+      #rwait2=#rwait1;
+    ELSE
+      #rwait2=#rwait1-#rwait2;
+    ENDIF
+    LOG("Имитация ошибки через %#rwait2%мс")
+    WAIT("%#rwait2%ms")
+    ECHO(%#eanswer%)
+    #rwait1=#rwait1-#rwait2;
+  ENDIF
+  IF(%#money%<480)
+    STOP()
+  ENDIF
+  IF(%#answer%=0)
+    STOP()
+  ENDIF
+  WAIT("%#rwait1%ms")
+  ECHO("%#answer%")
+  ECHO("/money")
+  STOP()
+ENDIF
+
+IFMATCHES(%CHATCLEAN%,"\[Викторина] Первый игрок, правильно ответивший на вопрос ниже, выиграет .*\.00 монет")
+  #i1=0;
+  &echo="";
+  WHILE((%#i1%<8) && (%&echo%!=">>>START>>>"))
+    WAIT("100ms")
+    &echo=$$<echo.txt>;
+    #i1++;
+  ENDWHILE
+  IF(%&echo%!=">>>START>>>")
+    LOG("Время ожидания исчерпано")
+    STOP()
+  ENDIF
+  WHILE((%&echo%!=">>>END>>>"))
+    &necho=$$<echo.txt>;
+    #i2=0;
+    WHILE((%#i2%<8) && (%&echo%=%&necho%))
+      WAIT("100ms")
+      &necho=$$<echo.txt>;
+      #i2++;
+    ENDWHILE
+    IF((%&echo%=%&necho%))
+      LOG("Время ожидания исчерпано")
+      STOP()
+    ENDIF
+    &echo=%&necho%;
+    IF(%&echo%!=">>>END>>>"))
+      WAIT("2000ms")
+      ECHO(%&echo%)
+    ELSE
+      LOG("Готово")
+      STOP()
+    ENDIF
+  ENDWHILE
+ENDIF
+
+IFMATCHES(%CHATCLEAN%,"\[Викторина] Вы выиграли")
+  IFMATCHES(%CHATCLEAN%,"..*\[")
+    LOG("Неверный отправитель")
+    STOP()
+  ENDIF
+  MATCH(%CHATCLEAN%,"ли (.*)\.00 ",{#money})
+  ACHIEVEMENTGET("+$%#money%",speckled_melon)
+  STOP()
+ENDIF
+
+IFMATCHES(%CHATCLEAN%,"Вы получили .* монет")
+  IFMATCHES(%CHATCLEAN%,"..*.ы получили")
+    LOG("Неверный отправитель")
+    STOP()
+  ENDIF
+  MATCH(%CHATCLEAN%,"ли (.*)\.0 ",{#money})
+  ACHIEVEMENTGET("+$%#money%",speckled_melon)
+  STOP()
+ENDIF
+
+IFMATCHES(%CHATCLEAN%,"[ \[].*[:\]].*[0-9].*?[\+\-\*\/\%xх].*?[0-9]")
+  WAIT("30ms")
+  MATCH(%CHATCLEAN%,".*([^0-9])([0-9]+).*?([\+\-\*\/\%xх]).*?([0-9]+)",{&min1,#y1,&operation,#y2})
+  IF(%&min1%="-")
+    #y1=0-#y1;
+  ENDIF
+  IF(%&operation%="-")
+    #yanswer=#y1-#y2;
+    LOG("&e%#y1% - %#y2% = %#yanswer%")
+  ENDIF
+  IF(%&operation%="+")
+    #yanswer=#y1+#y2;
+    LOG("&e%#y1% + %#y2% = %#yanswer%")
+  ENDIF
+  IF((%&operation%="*") || (%&operation%="x") || (%&operation%="х"))
+    #yanswer=#y1*#y2;
+    LOG("&e%#y1% * %#y2% = %#yanswer%")
+  ENDIF
+  IF((%&operation%="/") || (%&operation%="%"))
+    #yanswer=#y1/#y2;
+    #yprod=#y2*#yanswer;
+    IF(%#yprod%=%#y1%)
+      LOG("&e%#y1% / %#y2% = %#yanswer%")
+    ELSE
+      #yrem=#y1-#yprod;
+      LOG("&e%#y1% / %#y2% = %#yanswer% + %#yrem%/%#y2%")
+    ENDIF
+  ENDIF
+  STOP()
+ENDIF
